@@ -1,2 +1,8 @@
 <Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/Redplcs.HighResolutionTimer.Benchmarks/Redplcs.HighResolutionTimer.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Redplcs.HighResolutionTimer/Redplcs.HighResolutionTimer.csproj" />
+  </Folder>
 </Solution>
