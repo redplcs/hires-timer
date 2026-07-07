@@ -1,4 +1,5 @@
-﻿using Redplcs.HighResolutionTimer.Platform.Windows;
+﻿using Redplcs.HighResolutionTimer.Platform.Linux;
+using Redplcs.HighResolutionTimer.Platform.Windows;
 
 namespace Redplcs.HighResolutionTimer;
 
@@ -9,6 +10,11 @@ internal static class WaitProviderFactory
         if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17134))
         {
             return new WaitableTimer();
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            return new WakeableFdTimer();
         }
         
         throw new PlatformNotSupportedException();
