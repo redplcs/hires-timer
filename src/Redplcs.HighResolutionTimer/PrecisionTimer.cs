@@ -30,6 +30,7 @@ public sealed class PrecisionTimer : IDisposable
         get;
         set
         {
+            ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
             ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(value, TimeSpan.Zero);
             _origin = _timeProvider.GetTimestamp();
             field = value;
@@ -53,6 +54,8 @@ public sealed class PrecisionTimer : IDisposable
 
     public bool WaitForNextTick(CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
+        
         var period = Period;
 
         while (true)
