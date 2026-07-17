@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 namespace Redplcs.HighResolutionTimer.Platform.Windows;
 
 [SuppressMessage("ReSharper", "InconsistentNaming")]
+[SuppressMessage("ReSharper", "IdentifierTypo")]
 internal static partial class Interop
 {
     internal const uint INFINITE = 0xFFFFFFFF;

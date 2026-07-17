@@ -4,85 +4,117 @@ using System.Runtime.InteropServices;
 
 namespace Redplcs.HighResolutionTimer.Platform.Linux;
 
-internal sealed class WakeableFdTimer : IWaitProvider, IDisposable
+internal sealed class WakeableFdTimer : IWaitProvider
 {
+    private readonly SafeFileDescriptorHandle _handle;
     private readonly SafeFileDescriptorHandle _cancelHandle;
     private readonly SafeFileDescriptorHandle _disposingHandle;
     
     public WakeableFdTimer()
     {
+        var handle = Interop.timerfd_create(clockid: Interop.CLOCK_MONOTONIC, flags: Interop.TFD_CLOEXEC);
+        if (handle.IsInvalid)
+        {
+            throw new Win32Exception();
+        }
+        
         var cancelHandle = Interop.eventfd(initval: 0, flags: Interop.EFD_CLOEXEC | Interop.EFD_NONBLOCK);
         if (cancelHandle.IsInvalid)
         {
-            var ex = new Win32Exception();
-            throw ex;
+            throw new Win32Exception();
         }
         
         var disposingHandle = Interop.eventfd(initval: 0, flags: Interop.EFD_CLOEXEC | Interop.EFD_NONBLOCK);
         if (disposingHandle.IsInvalid)
         {
-            var ex = new Win32Exception();
-            throw ex;
+            throw new Win32Exception();
         }
         
-        (_cancelHandle, _disposingHandle) = (cancelHandle, disposingHandle);
+        (_handle, _cancelHandle, _disposingHandle) = (handle, cancelHandle, disposingHandle);
     }
 
     public void Dispose()
     {
+        _handle.Dispose();
         _cancelHandle.Dispose();
         _disposingHandle.Dispose();
     }
-    
-    public WaitResult Wait(TimeSpan timeout, CancellationToken ct, CancellationToken dt)
+
+    public void OnPeriodChanged(TimeSpan period)
     {
-        using (ct.Register(static s => Signal((SafeFileDescriptorHandle)s!), _cancelHandle))
-        using (dt.Register(static s => Signal((SafeFileDescriptorHandle)s!), _disposingHandle))
+        var timespec = new Interop.timespec
         {
-            bool cancelRef = false, disposingRef = false;
+            tv_sec = (nint)(period.Ticks / TimeSpan.TicksPerSecond),
+            tv_nsec = (nint)(period.Ticks % TimeSpan.TicksPerSecond * 100)
+        };
+            
+        var itimerspec = new Interop.itimerspec
+        {
+            it_interval = timespec,
+            it_value = timespec,
+        };
+        
+        var armed = Interop.timerfd_settime(
+            fd: _handle,
+            flags: 0,
+            new_value: itimerspec,
+            old_value: out _);
+
+        if (armed < 0)
+        {
+            throw new Win32Exception();
+        }
+    }
+
+    public WaitResult Wait(CancellationToken cancellationToken, CancellationToken disposingToken)
+    {
+        using (cancellationToken.Register(static s => Signal((SafeFileDescriptorHandle)s!), _cancelHandle))
+        using (disposingToken.Register(static s => Signal((SafeFileDescriptorHandle)s!), _disposingHandle))
+        {
+            bool handleRef = false, cancelRef = false, disposingRef = false;
             try
             {
+                _handle.DangerousAddRef(ref handleRef);
                 _cancelHandle.DangerousAddRef(ref cancelRef);
                 _disposingHandle.DangerousAddRef(ref disposingRef);
                 
                 Span<Interop.pollfd> fileDescriptors =
                 [
+                    new() { fd = (int)_handle.DangerousGetHandle(), events = Interop.POLLIN },
                     new() { fd = (int)_cancelHandle.DangerousGetHandle(), events = Interop.POLLIN },
                     new() { fd = (int)_disposingHandle.DangerousGetHandle(), events = Interop.POLLIN },
                 ];
-                
-                var timespec = new Interop.timespec
-                {
-                    tv_sec  = (nint)(timeout.Ticks / TimeSpan.TicksPerSecond),
-                    tv_nsec = (nint)(timeout.Ticks % TimeSpan.TicksPerSecond * 100)
-                };
-                
-                var rc = Interop.ppoll(
-                    fds: fileDescriptors,
-                    nfds: (nuint)fileDescriptors.Length,
-                    tmo_p: ref timespec,
-                    sigmask: 0);
 
-                switch (rc)
+                while (true)
                 {
-                    case 0:
-                        return WaitResult.Elapsed;
-                    case > 0 when (fileDescriptors[0].revents & Interop.POLLIN) != 0:
-                        Drain(_cancelHandle);
-                        return WaitResult.Canceled;
-                    case > 0 when (fileDescriptors[1].revents & Interop.POLLIN) != 0:
-                        Drain(_disposingHandle);
-                        return WaitResult.Disposed;
-                    case < 0 when Marshal.GetLastPInvokeError() == Interop.EINTR:
-                        return WaitResult.Interrupted;
-                    case < 0:
-                        throw new Win32Exception();
-                    default:
-                        throw new UnreachableException();
+                    var rc = Interop.poll(
+                        fds: fileDescriptors,
+                        nfds: (nuint)fileDescriptors.Length,
+                        timeout: -1);
+                    
+                    switch (rc)
+                    {
+                        case > 0 when (fileDescriptors[2].revents & Interop.POLLIN) != 0:
+                            Drain(_disposingHandle);
+                            return WaitResult.Disposed;
+                        case > 0 when (fileDescriptors[1].revents & Interop.POLLIN) != 0:
+                            Drain(_cancelHandle);
+                            return WaitResult.Canceled;
+                        case > 0 when (fileDescriptors[0].revents & Interop.POLLIN) != 0:
+                            Drain(_handle);
+                            return WaitResult.Elapsed;
+                        case < 0 when Marshal.GetLastPInvokeError() == Interop.EINTR:
+                            continue;
+                        case < 0:
+                            throw new Win32Exception();
+                        default:
+                            throw new UnreachableException();
+                    }
                 }
             }
             finally
             {
+                if (handleRef) _handle.DangerousRelease();
                 if (cancelRef) _cancelHandle.DangerousRelease();
                 if (disposingRef) _disposingHandle.DangerousRelease();
             }

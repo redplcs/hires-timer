@@ -5,11 +5,11 @@ namespace Redplcs.HighResolutionTimer;
 
 internal static class WaitProviderFactory
 {
-    internal static IWaitProvider Build()
+    internal static IWaitProvider Build(TimeProvider timeProvider)
     {
         if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17134))
         {
-            return new WaitableTimer();
+            return new WaitableTimer(timeProvider);
         }
 
         if (OperatingSystem.IsLinux())

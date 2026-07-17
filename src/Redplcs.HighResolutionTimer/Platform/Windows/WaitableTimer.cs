@@ -4,11 +4,15 @@ using System.Runtime.InteropServices;
 
 namespace Redplcs.HighResolutionTimer.Platform.Windows;
 
-internal sealed class WaitableTimer : IWaitProvider, IDisposable
+internal sealed class WaitableTimer : IWaitProvider
 {
     private readonly SafeWaitableTimerHandle _handle;
+    private readonly TimeProvider _timeProvider;
+    private TimeSpan _period;
+    private long _originTimestamp;
+    private long _nextDeadline;
     
-    internal WaitableTimer()
+    internal WaitableTimer(TimeProvider timeProvider)
     {
         var handle = Interop.Kernel32.CreateWaitableTimerEx(
             lpTimerAttributes: IntPtr.Zero,
@@ -22,20 +26,40 @@ internal sealed class WaitableTimer : IWaitProvider, IDisposable
         }
         
         _handle = handle;
+        _timeProvider = timeProvider;
     }
 
     public void Dispose()
     {
         _handle.Dispose();
     }
-    
-    public WaitResult Wait(TimeSpan timeout, CancellationToken ct, CancellationToken dt)
-    {
-        var dueTime = -timeout.Ticks;
 
+    public void OnPeriodChanged(TimeSpan period)
+    {
+        _period = period;
+        _originTimestamp = _timeProvider.GetTimestamp();
+        _nextDeadline = period.Ticks;
+    }
+    
+    public WaitResult Wait(CancellationToken cancellationToken, CancellationToken disposingToken)
+    {
+        var period = _period.Ticks;
+        var elapsed = _timeProvider.GetElapsedTime(_originTimestamp).Ticks;
+
+        if (elapsed >= _nextDeadline)
+        {
+            if (disposingToken.IsCancellationRequested) return WaitResult.Disposed;
+            if (cancellationToken.IsCancellationRequested) return WaitResult.Canceled;
+            
+            _nextDeadline = (elapsed / period + 1) * period;
+            return WaitResult.Elapsed;
+        }
+        
+        var remaining = -(_nextDeadline - elapsed);
+        
         var armed = Interop.Kernel32.SetWaitableTimerEx(
             hTimer: _handle,
-            lpDueTime: ref dueTime,
+            lpDueTime: ref remaining,
             lPeriod: 0,
             pfnCompletionRoutine: null,
             lpArgToCompletionRoutine: IntPtr.Zero,
@@ -49,9 +73,9 @@ internal sealed class WaitableTimer : IWaitProvider, IDisposable
 
         ReadOnlySpan<SafeHandle> handles =
         [
+            disposingToken.WaitHandle.SafeWaitHandle,
+            cancellationToken.WaitHandle.SafeWaitHandle,
             _handle,
-            ct.WaitHandle.SafeWaitHandle,
-            dt.WaitHandle.SafeWaitHandle,
         ];
 
         var signaled = Interop.Kernel32.WaitForMultipleObjects(
@@ -60,14 +84,20 @@ internal sealed class WaitableTimer : IWaitProvider, IDisposable
             bWaitAll: false,
             dwMilliseconds: Interop.INFINITE);
 
-        return signaled switch
+        switch (signaled)
         {
-            Interop.Kernel32.WAIT_OBJECT_0 => WaitResult.Elapsed,
-            Interop.Kernel32.WAIT_OBJECT_0 + 1 => WaitResult.Canceled,
-            Interop.Kernel32.WAIT_OBJECT_0 + 2 => WaitResult.Disposed,
-            Interop.Kernel32.WAIT_FAILED => throw new Win32Exception(),
-            // Should never happen: INFINITE wait without mutexes leaves only the cases above.
-            _ => throw new UnreachableException(),
-        };
+            case Interop.Kernel32.WAIT_OBJECT_0:
+                return WaitResult.Disposed;
+            case Interop.Kernel32.WAIT_OBJECT_0 + 1:
+                return WaitResult.Canceled;
+            case Interop.Kernel32.WAIT_OBJECT_0 + 2:
+                _nextDeadline += period;
+                return WaitResult.Elapsed;
+            case Interop.Kernel32.WAIT_FAILED:
+                throw new Win32Exception();
+            default:
+                // Should never happen: INFINITE wait without mutexes leaves only the cases above.
+                throw new UnreachableException();
+        }
     }
 }

@@ -5,5 +5,4 @@ internal enum WaitResult
     Elapsed,
     Disposed,
     Canceled,
-    Interrupted,
 }

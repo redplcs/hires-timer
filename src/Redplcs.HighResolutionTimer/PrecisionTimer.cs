@@ -7,7 +7,6 @@ public sealed class PrecisionTimer : IDisposable
     private readonly CancellationTokenSource _disposingTokenSource = new();
     private readonly IWaitProvider _waitProvider;
     private readonly TimeProvider _timeProvider;
-    private long _origin;
     private int _isDisposed;
 
     public PrecisionTimer(TimeSpan period) : this(period, TimeProvider.System)
@@ -19,7 +18,7 @@ public sealed class PrecisionTimer : IDisposable
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(period, TimeSpan.Zero);
         ArgumentNullException.ThrowIfNull(timeProvider);
 
-        _waitProvider = WaitProviderFactory.Build();
+        _waitProvider = WaitProviderFactory.Build(timeProvider);
         _timeProvider = timeProvider;
         
         Period = period;
@@ -32,8 +31,8 @@ public sealed class PrecisionTimer : IDisposable
         {
             ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
             ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(value, TimeSpan.Zero);
-            _origin = _timeProvider.GetTimestamp();
             field = value;
+            _waitProvider.OnPeriodChanged(value);
         }
     }
 
@@ -43,11 +42,7 @@ public sealed class PrecisionTimer : IDisposable
         {
             _disposingTokenSource.Cancel();
             
-            if (_waitProvider is IDisposable disposable)
-            {
-                disposable.Dispose();
-            }
-            
+            _waitProvider.Dispose();
             _disposingTokenSource.Dispose();
         }
     }
@@ -56,31 +51,12 @@ public sealed class PrecisionTimer : IDisposable
     {
         ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
         
-        var period = Period;
-
-        while (true)
+        return _waitProvider.Wait(cancellationToken, _disposingTokenSource.Token) switch
         {
-            var now = _timeProvider.GetTimestamp();
-            var elapsed = _timeProvider.GetElapsedTime(_origin, now);
-            var nextTickCount = elapsed.Ticks / period.Ticks + 1;
-            var nextDeadline = nextTickCount * period.Ticks;
-            var remaining = new TimeSpan(nextDeadline - elapsed.Ticks);
-            
-            var result = _waitProvider.Wait(remaining, cancellationToken, _disposingTokenSource.Token);
-
-            switch (result)
-            {
-                case WaitResult.Interrupted:
-                    continue;
-                case WaitResult.Elapsed:
-                    return true;
-                case WaitResult.Disposed:
-                    return false;
-                case WaitResult.Canceled:
-                    throw new OperationCanceledException(cancellationToken);
-                default:
-                    throw new UnreachableException();
-            }
-        }
+            WaitResult.Elapsed => true,
+            WaitResult.Disposed => false,
+            WaitResult.Canceled => throw new OperationCanceledException(cancellationToken),
+            _ => throw new UnreachableException()
+        };
     }
 }
