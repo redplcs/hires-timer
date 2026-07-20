@@ -1,4 +1,5 @@
-﻿using Redplcs.HighResolutionTimer.Platform.Linux;
+﻿using Redplcs.HighResolutionTimer.Platform.Darwin;
+using Redplcs.HighResolutionTimer.Platform.Linux;
 using Redplcs.HighResolutionTimer.Platform.Windows;
 
 namespace Redplcs.HighResolutionTimer;
@@ -15,6 +16,15 @@ internal static class WaitProviderFactory
         if (OperatingSystem.IsLinux())
         {
             return new WakeableFdTimer();
+        }
+
+        if (OperatingSystem.IsMacOS() ||
+            OperatingSystem.IsMacCatalyst() ||
+            OperatingSystem.IsIOS() ||
+            OperatingSystem.IsTvOS() ||
+            OperatingSystem.IsWatchOS())
+        {
+            return new KqueueTimer();
         }
         
         throw new PlatformNotSupportedException();

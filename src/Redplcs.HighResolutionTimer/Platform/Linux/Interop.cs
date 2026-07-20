@@ -2,6 +2,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
+using Redplcs.HighResolutionTimer.Platform.Unix;
 
 namespace Redplcs.HighResolutionTimer.Platform.Linux;
 
@@ -31,7 +32,6 @@ internal static partial class Interop
     
     internal const int POLLIN = 0x001;
     
-    internal const int EINTR = 4;
     internal const int EAGAIN = 11;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -73,7 +73,4 @@ internal static partial class Interop
 
     [LibraryImport(LibraryName, SetLastError = true)]
     internal static partial int write(SafeFileDescriptorHandle fd, Span<byte> buf, nint count);
-
-    [LibraryImport(LibraryName, SetLastError = true)]
-    internal static partial int close(int fd);
 }

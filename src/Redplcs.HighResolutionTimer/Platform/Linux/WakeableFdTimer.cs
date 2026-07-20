@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Redplcs.HighResolutionTimer.Platform.Unix;
 
 namespace Redplcs.HighResolutionTimer.Platform.Linux;
 
@@ -103,7 +104,7 @@ internal sealed class WakeableFdTimer : IWaitProvider
                         case > 0 when (fileDescriptors[0].revents & Interop.POLLIN) != 0:
                             Drain(_handle);
                             return WaitResult.Elapsed;
-                        case < 0 when Marshal.GetLastPInvokeError() == Interop.EINTR:
+                        case < 0 when Marshal.GetLastPInvokeError() == Unix.Interop.EINTR:
                             continue;
                         case < 0:
                             throw new Win32Exception();
@@ -142,7 +143,7 @@ internal sealed class WakeableFdTimer : IWaitProvider
             var e = Marshal.GetLastPInvokeError();
             switch (e)
             {
-                case Interop.EINTR:
+                case Unix.Interop.EINTR:
                     continue;
                 case Interop.EAGAIN:
                     return;

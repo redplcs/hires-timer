@@ -1,7 +1,7 @@
 ﻿using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
-namespace Redplcs.HighResolutionTimer.Platform.Linux;
+namespace Redplcs.HighResolutionTimer.Platform.Unix;
 
 internal sealed class SafeFileDescriptorHandle : SafeHandleZeroOrMinusOneIsInvalid
 {
