@@ -13,11 +13,14 @@ internal static class WaitProviderFactory
             return new WaitableTimer(timeProvider);
         }
 
-        if (OperatingSystem.IsLinux())
+        if (OperatingSystem.IsLinux() &&
+            OperatingSystem.IsOSPlatformVersionAtLeast("Linux", 2, 6, 27))
         {
             return new WakeableFdTimer();
         }
 
+        // The kqueue features used (newest: NOTE_CRITICAL, macOS 10.9 / iOS 7) predate every
+        // Apple OS capable of running .NET, so no version check is needed.
         if (OperatingSystem.IsMacOS() ||
             OperatingSystem.IsMacCatalyst() ||
             OperatingSystem.IsIOS() ||
