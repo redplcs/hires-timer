@@ -1,0 +1,50 @@
+name: Sleep precision
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run benchmarks
+        shell: bash
+        run: |
+          dotnet run -c Release \
+            --project benchmarks/Redplcs.HighResolutionTimer.Benchmarks \
+            -- \
+            --filter '*' \
+            --exporters github json \
+            --artifacts "${{ github.workspace }}/BenchmarkDotNet.Artifacts"
+
+      - name: Add results to job summary
+        if: always()
+        shell: bash
+        run: |
+          shopt -s nullglob
+          reports=("${{ github.workspace }}"/BenchmarkDotNet.Artifacts/results/*-report-github.md)
+          {
+            if [ ${#reports[@]} -eq 0 ]; then
+              echo "_No benchmark report was produced._"
+            else
+              for f in "${reports[@]}"; do
+                cat "$f"
+                echo
+              done
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
