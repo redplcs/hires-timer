@@ -98,7 +98,9 @@ public sealed class PrecisionTimer : IDisposable
     {
         ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
         
-        return _waitProvider.Wait(cancellationToken, _disposingTokenSource.Token) switch
+        var result = _waitProvider.Wait(cancellationToken, _disposingTokenSource.Token);
+
+        return result switch
         {
             WaitResult.Elapsed => true,
             WaitResult.Disposed => false,

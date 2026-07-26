@@ -1,4 +1,5 @@
-﻿using Redplcs.HighResolutionTimer.Platform.Darwin;
+﻿using System.Runtime.InteropServices;
+using Redplcs.HighResolutionTimer.Platform.Darwin;
 using Redplcs.HighResolutionTimer.Platform.Linux;
 using Redplcs.HighResolutionTimer.Platform.Windows;
 
@@ -14,9 +15,9 @@ internal static class WaitProviderFactory
         }
 
         if (OperatingSystem.IsLinux() &&
-            OperatingSystem.IsOSPlatformVersionAtLeast("Linux", 2, 6, 27))
+            OperatingSystem.IsOSPlatformVersionAtLeast(nameof(OSPlatform.Linux), 2, 6, 27))
         {
-            return new WakeableFdTimer();
+            return new TimerfdTimer();
         }
 
         // The kqueue features used (newest: NOTE_CRITICAL, macOS 10.9 / iOS 7) predate every
