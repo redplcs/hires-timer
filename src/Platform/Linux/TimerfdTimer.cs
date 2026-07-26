@@ -43,8 +43,8 @@ internal sealed class TimerfdTimer : IWaitProvider
         }
         
         Register(epollHandle, handle, TimerIdent);
-        Register(epollHandle, handle, CancelIdent);
-        Register(epollHandle, handle, DisposingIdent);
+        Register(epollHandle, cancelHandle, CancelIdent);
+        Register(epollHandle, disposingHandle, DisposingIdent);
         
         (_handle, _cancelHandle, _disposingHandle, _epollHandle) = (handle, cancelHandle, disposingHandle, epollHandle);
     }
@@ -74,6 +74,7 @@ internal sealed class TimerfdTimer : IWaitProvider
         _handle.Dispose();
         _cancelHandle.Dispose();
         _disposingHandle.Dispose();
+        _epollHandle.Dispose();
     }
 
     public void OnPeriodChanged(TimeSpan period)
