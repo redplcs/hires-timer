@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Redplcs.HighResolutionTimer\Redplcs.HighResolutionTimer.csproj" />
+    <ProjectReference Include="..\src\Redplcs.HighResolutionTimer.csproj" />
   </ItemGroup>
 
 </Project>

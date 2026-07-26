@@ -26,7 +26,7 @@ jobs:
         shell: bash
         run: |
           dotnet run -c Release \
-            --project benchmarks/Redplcs.HighResolutionTimer.Benchmarks \
+            --project benchmarks \
             -- \
             --filter '*' \
             --exporters github json \

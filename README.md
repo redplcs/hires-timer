@@ -68,7 +68,7 @@ Sample [BenchmarkDotNet](https://github.com/dotnet/BenchmarkDotNet) results from
 The [Sleep precision](.github/workflows/sleep-precision.yml) workflow runs the benchmark suite on Ubuntu, Windows, and macOS and publishes the results to the job summary. To run the benchmarks locally:
 
 ```shell
-dotnet run -c Release --project benchmarks/Redplcs.HighResolutionTimer.Benchmarks -- --filter '*'
+dotnet run -c Release --project benchmarks -- --filter '*'
 ```
 
 ## Improving precision
