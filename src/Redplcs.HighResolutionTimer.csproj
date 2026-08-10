@@ -13,7 +13,6 @@
 
   <PropertyGroup>
     <PackageId>Redplcs.HighResolutionTimer</PackageId>
-    <Version>1.0.0</Version>
     <Authors>Redplcs</Authors>
     <Description>A cross-platform, high-resolution periodic timer for .NET that lets a dedicated thread wait synchronously for timer ticks with microsecond-level accuracy and zero allocations on the wait path.</Description>
     <PackageTags>timer;high-resolution;precision;periodic;cross-platform;</PackageTags>

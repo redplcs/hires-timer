@@ -1,0 +1,36 @@
+name: Publish NuGet package
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Exchange OIDC token for NuGet API key
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Build NuGet package
+        run: |
+          dotnet pack src/Redplcs.HighResolutionTimer.csproj \
+            -c Release \
+            -p:Version=${GITHUB_REF_NAME#v} \
+            -o out
+
+      - name: Publish package to NuGet
+        run: |
+          dotnet nuget push 'out/*.nupkg' \
+            -k ${{ steps.login.outputs.NUGET_API_KEY }} \
+            -s https://api.nuget.org/v3/index.json
