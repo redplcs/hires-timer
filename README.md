@@ -20,7 +20,7 @@ A cross-platform, high-resolution periodic timer for .NET that lets a dedicated 
 dotnet add package Redplcs.HighResolutionTimer
 ```
 
-Requires .NET 10 or later and a supported platform (see [Platform support](#platform-support)).
+Requires .NET 8 or later and a supported platform (see [Platform support](#platform-support)).
 
 ## Usage
 
@@ -50,7 +50,7 @@ The timer is intended for a single consumer: only one call to `WaitForNextTick` 
 | Platform | Mechanism |
 | --- | --- |
 | Windows 10 1803+ | High-resolution waitable timer (`CREATE_WAITABLE_TIMER_HIGH_RESOLUTION`) waited on with `WaitForMultipleObjects` |
-| Linux (kernel 2.6.27+) | `timerfd` on `CLOCK_MONOTONIC`, with `eventfd` wakeups for cancellation and disposal, multiplexed via `poll` |
+| Linux (kernel 2.6.27+) | `timerfd` on `CLOCK_MONOTONIC`, with `eventfd` wakeups for cancellation and disposal, multiplexed via edge-triggered `epoll` |
 | macOS 10.9+, iOS 7+, and any Mac Catalyst, tvOS, or watchOS version | `kqueue` with `EVFILT_TIMER` (`NOTE_CRITICAL`) and `EVFILT_USER` wakeups |
 
 On any other platform the constructor throws `PlatformNotSupportedException`.
