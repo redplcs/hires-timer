@@ -32,6 +32,8 @@ internal static partial class Interop
 
     internal const int EPOLL_CLOEXEC = TFD_CLOEXEC;
 
+    internal const int EAGAIN = 11;
+
     internal const int EPOLL_CTL_ADD = 1;
 
     internal const uint EPOLLIN = 0x001;
@@ -127,4 +129,7 @@ internal static partial class Interop
 
     [LibraryImport(LibraryName, SetLastError = true)]
     internal static partial int write(SafeFileDescriptorHandle fd, Span<byte> buf, nint count);
+
+    [LibraryImport(LibraryName, SetLastError = true)]
+    internal static partial int read(SafeFileDescriptorHandle fd, Span<byte> buf, nint count);
 }
